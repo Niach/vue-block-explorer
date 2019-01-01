@@ -14,6 +14,7 @@ import { MapEntry } from '@/pbs/common_pb'
 import { sha256 } from 'js-sha256'
 import { bytesToHex } from 'loom-js/dist/crypto-utils'
 import { versionGreaterThan } from './utils'
+import {PrattleEvent} from "@/prattle";
 
 export interface ISigned {
   sig: Uint8Array
@@ -30,6 +31,7 @@ export interface IDecodedTx {
   method: string
   arrData: Array<any>
   vmType?: VMType
+  evmEvents?: PrattleEvent[]
 }
 
 // On versions greater than 0.22.8 the bytes for the tx hash id should be 32 bytes

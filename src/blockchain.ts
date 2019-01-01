@@ -5,6 +5,8 @@ import { Client, createJSONRPCClient } from 'loom-js'
 import { VMType, DeployResponse, DeployResponseData } from 'loom-js/dist/proto/loom_pb'
 import { EvmTxReceipt } from 'loom-js/dist/proto/evm_pb'
 import { B64ToUint8Array, bytesToHexAddr, numberToHex } from 'loom-js/dist/crypto-utils'
+import { decodeLogs, addABI} from 'abi-decoder';
+import {PostEvent, PrattleEvent} from "@/prattle";
 
 interface IBlockchainStatusResponse {
   result: {
@@ -43,6 +45,7 @@ interface IEthReceipt {
 interface IEvmTxDetails {
   type: string
   receipt: Array<any>
+  events: PrattleEvent[]
 }
 
 enum EVMCall {
@@ -108,6 +111,212 @@ export class Blockchain {
     this.chainID = params.chainID
     this.serverUrl = params.serverUrl
     this.allowedUrls = params.allowedUrls
+    addABI([
+      {
+        'constant': true,
+        'inputs': [],
+        'name': 'username',
+        'outputs': [
+          {
+            'name': '',
+            'type': 'string'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'view',
+        'type': 'function'
+      },
+      {
+        'constant': true,
+        'inputs': [],
+        'name': 'numberOfLikes',
+        'outputs': [
+          {
+            'name': '',
+            'type': 'uint256'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'view',
+        'type': 'function'
+      },
+      {
+        'constant': true,
+        'inputs': [],
+        'name': 'picture',
+        'outputs': [
+          {
+            'name': '',
+            'type': 'string'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'view',
+        'type': 'function'
+      },
+      {
+        'constant': true,
+        'inputs': [],
+        'name': 'owner',
+        'outputs': [
+          {
+            'name': '',
+            'type': 'address'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'view',
+        'type': 'function'
+      },
+      {
+        'constant': true,
+        'inputs': [],
+        'name': 'pictureType',
+        'outputs': [
+          {
+            'name': '',
+            'type': 'string'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'view',
+        'type': 'function'
+      },
+      {
+        'constant': true,
+        'inputs': [],
+        'name': 'numberOfPosts',
+        'outputs': [
+          {
+            'name': '',
+            'type': 'uint256'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'view',
+        'type': 'function'
+      },
+      {
+        'constant': false,
+        'inputs': [
+          {
+            'name': 'newOwner',
+            'type': 'address'
+          }
+        ],
+        'name': 'transferOwnership',
+        'outputs': [],
+        'payable': false,
+        'stateMutability': 'nonpayable',
+        'type': 'function'
+      },
+      {
+        'inputs': [
+          {
+            'name': 'name',
+            'type': 'string'
+          },
+          {
+            'name': 'users',
+            'type': 'address'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'nonpayable',
+        'type': 'constructor'
+      },
+      {
+        'anonymous': false,
+        'inputs': [
+          {
+            'indexed': false,
+            'name': 'post',
+            'type': 'address'
+          },
+          {
+            'indexed': false,
+            'name': 'timestamp',
+            'type': 'uint256'
+          }
+        ],
+        'name': 'Posted',
+        'type': 'event'
+      },
+      {
+        'anonymous': false,
+        'inputs': [
+          {
+            'indexed': false,
+            'name': 'picture',
+            'type': 'string'
+          },
+          {
+            'indexed': false,
+            'name': 'pictureType',
+            'type': 'string'
+          }
+        ],
+        'name': 'PictureChanged',
+        'type': 'event'
+      },
+      {
+        'anonymous': false,
+        'inputs': [
+          {
+            'indexed': false,
+            'name': 'newOwner',
+            'type': 'address'
+          }
+        ],
+        'name': 'TransferredOwnership',
+        'type': 'event'
+      },
+      {
+        'constant': false,
+        'inputs': [
+          {
+            'name': 'ipfsHash',
+            'type': 'string'
+          },
+          {
+            'name': 'ipfsType',
+            'type': 'string'
+          }
+        ],
+        'name': 'setPicture',
+        'outputs': [],
+        'payable': false,
+        'stateMutability': 'nonpayable',
+        'type': 'function'
+      },
+      {
+        'constant': false,
+        'inputs': [
+          {
+            'name': 'text',
+            'type': 'string'
+          },
+          {
+            'name': 'ipfs',
+            'type': 'string'
+          },
+          {
+            'name': 'ipfsType',
+            'type': 'string'
+          }
+        ],
+        'name': 'post',
+        'outputs': [
+          {
+            'name': '',
+            'type': 'address'
+          }
+        ],
+        'payable': false,
+        'stateMutability': 'nonpayable',
+        'type': 'function'
+      }
+    ]);
     this.startClientConnection()
   }
 
@@ -275,6 +484,7 @@ export class Blockchain {
       }
     })
 
+
     return {
       transactionHash,
       transactionIndex,
@@ -309,8 +519,9 @@ export class Blockchain {
       tx_result.info = EVMCall.CallEVM
     }
 
-    const evmTxReceiptResp = await this.client.getEvmTxReceiptAsync(loomEVMtxHash)
+    const evmTxReceiptResp: EvmTxReceipt | null = await this.client.getEvmTxReceiptAsync(loomEVMtxHash)
     const evmTxReceipt = this._createReceiptResult(evmTxReceiptResp!)
+    const l = decodeLogs(evmTxReceipt.logs);
 
     // Turn into already used structure for key/value
     const evmTxReceiptArray = Object.keys(evmTxReceipt).map((key: string) => ({
@@ -318,7 +529,27 @@ export class Blockchain {
       value: (evmTxReceipt as any)[key]
     }))
 
-    return { type: tx_result.info, receipt: evmTxReceiptArray }
+    // Decode prattle evm events
+    const events = decodeLogs(evmTxReceipt.logs);
+    console.dir(events);
+    const prattleEvents: PrattleEvent[] = [];
+    events.forEach(event => {
+
+      switch(event.name) {
+        case 'Posted': {
+          const postEvent: PostEvent = { post: event.events[0].value, timestamp: event.events[1].value, address: event.address, type: 'post' };
+          prattleEvents.push(postEvent)
+        }
+      }
+    });
+
+
+
+    return {
+      type: tx_result.info,
+      receipt: evmTxReceiptArray,
+      events: prattleEvents
+    }
   }
 
   async fetchTxsInBlock(block: IBlockchainBlock) {
@@ -350,6 +581,7 @@ export class Blockchain {
 
               txData.method = evmTxDetails.type
               txData.arrData = evmTxDetails.receipt
+              txData.evmEvents = evmTxDetails.events
             }
 
             txType = 'EVM Call'

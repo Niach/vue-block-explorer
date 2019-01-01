@@ -1,10 +1,10 @@
 <template>
   <div>
     <TxPreviewField label="Method: " class="kind" :value="txMethod"/>
-    <div class="text-label">{{isEVM ? 'Transaction Receipt' : 'Transaction Data' }}:</div>
+    <div class="text-label">{{isEVM ? (hasEvents ? 'Events' : 'Transaction Receipt') : 'Transaction Data' }}:</div>
     <hr>
     <div class="json-view">
-      <vue-json-pretty :data="txJSONData"></vue-json-pretty>
+      <vue-json-pretty :data="hasEvents ? eventsData : txJSONData"></vue-json-pretty>
     </div>
   </div>
 </template>

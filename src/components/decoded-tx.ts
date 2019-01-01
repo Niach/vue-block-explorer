@@ -40,11 +40,19 @@ export default class DecodedTx extends Vue {
     return jsonData
   }
 
+  get eventsData(): Object {
+    return this.tx.evmEvents!
+  }
+
   get txMethod(): string {
     return this.tx.method
   }
 
   get isEVM(): Boolean {
     return this.tx.method.endsWith('evm')
+  }
+
+  get hasEvents(): Boolean {
+    return this.tx.evmEvents!.length > 0;
   }
 }
